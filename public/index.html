@@ -23,8 +23,9 @@
   
   .card { background: #fff; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 14px; }
   
-  #video-wrap { position: relative; background: #111; aspect-ratio: 4/3; }
+  #video-wrap { position: relative; background: #111; aspect-ratio: 4/3; overflow: hidden; }
   #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  video { display: block; width: 100%; }
   #scan-line { position: absolute; left: 10%; right: 10%; height: 2.5px; background: var(--green-mid); top: 50%; transform: translateY(-50%); animation: sweep 2s ease-in-out infinite; box-shadow: 0 0 10px var(--green-mid); display: none; }
   @keyframes sweep { 0%,100%{top:20%} 50%{top:80%} }
   .corner { position: absolute; width: 28px; height: 28px; border-color: var(--green-mid); border-style: solid; }
@@ -253,55 +254,112 @@ document.getElementById('search-in').addEventListener('input', (e) => {
 });
 
 // Botón iniciar escáner
-document.getElementById('btn-start').addEventListener('click', async () => {
+document.getElementById('btn-start').addEventListener('click', () => {
   const btn = document.getElementById('btn-start');
-  const video = document.getElementById('video');
   
   if (btn.classList.contains('active')) {
     Quagga.stop();
     btn.classList.remove('active');
     btn.textContent = '▶ Iniciar escáner';
+    console.log('Escáner detenido');
+    document.getElementById('status').textContent = 'Listo para escanear.';
     return;
   }
   
-  try {
-    btn.classList.add('active');
-    btn.textContent = '⏹ Detener';
+  btn.classList.add('active');
+  btn.textContent = '⏹ Detener';
+  document.getElementById('status').textContent = 'Pidiendo permisos de cámara...';
+  console.log('Iniciando escáner...');
+  
+  // Primero solicitar cámara
+  navigator.mediaDevices.getUserMedia({
+    video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+    audio: false
+  }).then((stream) => {
+    console.log('✓ Cámara accesible');
+    document.getElementById('status').textContent = 'Inicializando escáner...';
     
-    await Quagga.init({
+    // Ahora inicializar Quagga
+    Quagga.init({
       inputStream: {
-        type: 'LiveStream',
-        constraints: { facingMode: 'environment' }
+        sourceType: 'LiveStream',
+        target: document.querySelector('#video-wrap'),
+        constraints: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
       },
-      decoder: { readers: ['code_128_reader', 'ean_reader', 'ean_8_reader', 'upc_reader'] }
+      locator: {
+        patchSize: 'medium',
+        halfSample: true
+      },
+      decoder: {
+        readers: [
+          'code_128_reader',
+          'ean_reader',
+          'ean_8_reader',
+          'upc_reader',
+          'upc_e_reader'
+        ]
+      },
+      debug: { showPatches: false }
     }, (err) => {
       if (err) {
-        console.error('Error inicializando cámara:', err);
+        console.error('❌ Error Quagga:', err);
+        document.getElementById('status').textContent = 'Error: ' + err.message;
         btn.classList.remove('active');
         btn.textContent = '▶ Iniciar escáner';
-        alert('No se pudo acceder a la cámara');
         return;
       }
+      
+      console.log('✓ Quagga inicializado');
+      document.getElementById('status').textContent = 'Cámara activa - Escanea un código';
+      
       Quagga.start();
-    });
-    
-    Quagga.onDetected((result) => {
-      if (result.codeResult.code) {
-        const product = searchProduct(result.codeResult.code);
+      
+      Quagga.onDetected((result) => {
+        const code = result.codeResult.code;
+        console.log('✓ Código detectado:', code);
+        document.getElementById('status').textContent = 'Código: ' + code;
+        
+        const product = searchProduct(code);
         displayResult(product);
-        Quagga.stop();
-        btn.classList.remove('active');
-        btn.textContent = '▶ Iniciar escáner';
-      }
+        
+        // Detener después de detectar
+        setTimeout(() => {
+          Quagga.stop();
+          btn.classList.remove('active');
+          btn.textContent = '▶ Iniciar escáner';
+        }, 1500);
+      });
     });
-  } catch (error) {
-    console.error('Error:', error);
+  }).catch((error) => {
+    console.error('❌ Error de cámara:', error.name, error.message);
+    document.getElementById('status').textContent = 'Error: ' + error.message;
     btn.classList.remove('active');
     btn.textContent = '▶ Iniciar escáner';
-  }
+    
+    if (error.name === 'NotAllowedError') {
+      alert('Debes permitir acceso a la cámara');
+    } else if (error.name === 'NotFoundError') {
+      alert('No se encontró cámara en el dispositivo');
+    }
+  });
 });
 
 // Inicializar al cargar
+console.log('🚀 Aplicación iniciando...');
+console.log('✓ Quagga disponible:', typeof Quagga !== 'undefined');
+console.log('✓ Supabase disponible:', typeof supabase !== 'undefined');
+
+// Verificar elementos del DOM
+const requiredElements = ['btn-start', 'video-wrap', 'manual-in', 'btn-manual', 'search-in', 'result-card'];
+requiredElements.forEach(id => {
+  const el = document.getElementById(id);
+  console.log(`${el ? '✓' : '❌'} Elemento #${id}:`, el ? 'encontrado' : 'NO ENCONTRADO');
+});
+
 initSupabase();
 </script>
 

@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Debug - Escáner Verito</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  body { font-family: monospace; background: #1a1a1a; color: #0f0; padding: 20px; }
+  .log { margin: 5px 0; padding: 8px; background: #000; border: 1px solid #0f0; }
+  .error { color: #f00; }
+  .success { color: #0f0; }
+  button { padding: 10px; margin: 5px; background: #0f0; color: #000; border: none; cursor: pointer; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<h1>🔧 Debug Console</h1>
+<button onclick="testSupabase()">Test Supabase</button>
+<button onclick="testConfig()">Test Config</button>
+<button onclick="testProducts()">Cargar Productos</button>
+
+<div id="logs"></div>
+
+<script>
+const logsDiv = document.getElementById('logs');
+
+function log(msg, isError = false) {
+  const div = document.createElement('div');
+  div.className = `log ${isError ? 'error' : 'success'}`;
+  div.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  logsDiv.appendChild(div);
+  console.log(msg);
+}
+
+async function testConfig() {
+  log('📡 Obteniendo configuración...');
+  try {
+    const response = await fetch('/api/config');
+    const config = await response.json();
+    log(`✓ URL: ${config.url}`);
+    log(`✓ KEY: ${config.key.substring(0, 20)}...`);
+  } catch (error) {
+    log(`❌ Error: ${error.message}`, true);
+  }
+}
+
+async function testSupabase() {
+  log('🔌 Conectando a Supabase...');
+  try {
+    const response = await fetch('/api/config');
+    const config = await response.json();
+    const supabase = window.supabase.createClient(config.url, config.key);
+    
+    const { data, error } = await supabase.from('products').select('count()', { count: 'exact', head: true });
+    
+    if (error) {
+      log(`❌ Error: ${error.message}`, true);
+    } else {
+      log(`✓ Supabase conectado correctamente`);
+    }
+  } catch (error) {
+    log(`❌ Error: ${error.message}`, true);
+  }
+}
+
+async function testProducts() {
+  log('📦 Cargando productos...');
+  try {
+    const response = await fetch('/api/config');
+    const config = await response.json();
+    const supabase = window.supabase.createClient(config.url, config.key);
+    
+    const { data, error } = await supabase.from('products').select('*').limit(5);
+    
+    if (error) {
+      log(`❌ Error: ${error.message}`, true);
+    } else {
+      log(`✓ ${data.length} productos encontrados`);
+      if (data.length > 0) {
+        log(`Primer producto: ${JSON.stringify(data[0])}`);
+      }
+    }
+  } catch (error) {
+    log(`❌ Error: ${error.message}`, true);
+  }
+}
+
+log('✓ Debug console cargado');
+log('Haz click en los botones para testear');
+</script>
+
+</body></html>

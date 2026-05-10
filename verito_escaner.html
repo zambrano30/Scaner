@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Supermercados Verito Cedeño</title>
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #0F6E56; --green-light: #E1F5EE; --green-mid: #1D9E75;
+    --amber: #BA7517; --amber-light: #FAEEDA;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --text: #1a1a1a; --muted: #666; --border: #e0e0e0; --bg: #f4f6f4;
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  header {
+    background: var(--green);
+    color: #fff;
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,.2);
+    position: sticky; top: 0; z-index: 10;
+  }
+  header h1 { font-size: 16px; font-weight: 700; }
+  header p { font-size: 12px; opacity: .8; margin-top: 2px; }
+
+  main { max-width: 560px; margin: 0 auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+
+  .card { background: #fff; border-radius: 16px; border: 1px solid var(--border); overflow: hidden; }
+
+  /* VIDEO */
+  #video-wrap { position: relative; background: #111; aspect-ratio: 4/3; }
+  #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #scan-line { position: absolute; left: 10%; right: 10%; height: 2.5px; background: var(--green-mid);
+    top: 50%; transform: translateY(-50%); animation: sweep 2s ease-in-out infinite;
+    box-shadow: 0 0 10px var(--green-mid); display: none; }
+  @keyframes sweep { 0%,100%{top:20%} 50%{top:80%} }
+  .corner { position: absolute; width: 28px; height: 28px; border-color: var(--green-mid); border-style: solid; }
+  .tl{top:12px;left:12px;border-width:3px 0 0 3px;border-radius:5px 0 0 0;}
+  .tr{top:12px;right:12px;border-width:3px 3px 0 0;border-radius:0 5px 0 0;}
+  .bl{bottom:12px;left:12px;border-width:0 0 3px 3px;border-radius:0 0 0 5px;}
+  .br{bottom:12px;right:12px;border-width:0 3px 3px 0;border-radius:0 0 5px 0;}
+  #overlay { position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;color:#fff;text-align:center;padding:20px;gap:10px; }
+  #overlay p { font-size:14px;opacity:.9;line-height:1.5; }
+
+  .controls { padding: 14px; display: flex; gap: 10px; }
+  #btn-start { flex:1;padding:13px;background:var(--green);color:#fff;border:none;border-radius:12px;
+    font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;
+    gap:8px;transition:background .2s; }
+  #btn-start:hover { background:#0b5a44; }
+  #btn-start.active { background:#8B0000; }
+
+  #status { text-align:center;font-size:13px;color:var(--muted);padding:0 14px 14px;min-height:20px; }
+
+  /* RESULT */
+  #result-card { display:none; padding:18px; border-top: 1px solid var(--border); }
+  .res-code { font-size:11px;font-family:monospace;color:var(--muted);margin-bottom:6px; }
+  .res-name { font-size:20px;font-weight:700;color:var(--text);margin-bottom:10px;line-height:1.3; }
+  .res-price { font-size:36px;font-weight:800;color:var(--green);margin-bottom:14px; }
+  .res-price span { font-size:18px;font-weight:500;color:var(--muted); }
+  #btn-rescan { width:100%;padding:12px;background:var(--green-light);color:var(--green);
+    border:1.5px solid var(--green-mid);border-radius:12px;font-size:14px;font-weight:700;cursor:pointer; }
+
+  .not-found { text-align:center;padding:20px; }
+  .not-found strong { display:block;font-size:16px;color:var(--red);margin-bottom:6px; }
+  .not-found small { color:var(--muted);font-size:13px; }
+
+  /* MANUAL */
+  .manual-row { padding:0 14px 14px;display:flex;gap:8px; }
+  .manual-row input { flex:1;padding:11px 12px;border:1px solid var(--border);border-radius:10px;font-size:14px; }
+  .manual-row input:focus { outline:none;border-color:var(--green-mid); }
+  .manual-row button { padding:11px 16px;background:var(--green);color:#fff;border:none;
+    border-radius:10px;font-size:14px;cursor:pointer;font-weight:700; }
+
+  /* SEARCH */
+  .section-label { font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;
+    letter-spacing:.07em;padding:14px 14px 8px;border-bottom:1px solid var(--border); }
+  #search-wrap { position:relative;padding:12px 14px; }
+  #search-wrap input { width:100%;padding:11px 12px 11px 38px;border:1px solid var(--border);
+    border-radius:10px;font-size:14px; }
+  #search-wrap input:focus { outline:none;border-color:var(--green-mid); }
+  #search-icon { position:absolute;left:24px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:16px; }
+  #search-results { max-height:260px;overflow-y:auto; }
+  .s-item { padding:11px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;display:flex;
+    justify-content:space-between;align-items:center;transition:background .1s; }
+  .s-item:hover { background:var(--green-light); }
+  .s-item-left .s-name { font-size:14px;font-weight:500; }
+  .s-item-left .s-code { font-size:11px;color:var(--muted);font-family:monospace; }
+  .s-price { font-size:15px;font-weight:700;color:var(--green); }
+
+  /* LOADING */
+  #loading { display:flex;align-items:center;justify-content:center;gap:10px;padding:20px;color:var(--muted);font-size:14px; }
+  .spinner { width:20px;height:20px;border:2px solid var(--border);border-top-color:var(--green);
+    border-radius:50%;animation:spin .7s linear infinite; }
+  @keyframes spin { to{transform:rotate(360deg)} }
+
+  #footer { text-align:center;font-size:12px;color:var(--muted);padding-bottom:20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="38" height="38" viewBox="0 0 38 38" fill="none">
+    <rect width="38" height="38" rx="9" fill="white" fill-opacity=".15"/>
+    <path d="M8 11h2v16H8V11zm3 0h1v16h-1V11zm3 0h2v16h-2V11zm4 0h1v16h-1V11zm2 0h2v16h-2V11zm3 0h1v16h-1V11zm2 0h3v16h-3V11z" fill="white"/>
+  </svg>
+  <div>
+    <h1>Supermercados Verito Cedeño</h1>
+    <p id="header-sub">Cargando productos…</p>
+  </div>
+</header>
+
+<main>
+  <!-- SCANNER CARD -->
+  <div class="card">
+    <div id="video-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div id="scan-line"></div>
+      <div id="overlay">
+        <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.4">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <path d="M14 14h2v2h-2zm4 0h3v3h-3zm0 4h2v3h-2zm-4 2h2v3h-2z"/>
+        </svg>
+        <p>Presiona <strong>Iniciar escáner</strong><br>para activar la cámara</p>
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="btn-start">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/>
+          <line x1="7" y1="12" x2="17" y2="12"/>
+        </svg>
+        Iniciar escáner
+      </button>
+    </div>
+    <div id="status">Listo.</div>
+
+    <div id="result-card"></div>
+
+    <div class="manual-row">
+      <input id="manual-in" type="text" placeholder="Ingresar código manualmente…" inputmode="numeric"/>
+      <button id="btn-manual">Buscar</button>
+    </div>
+  </div>
+
+  <!-- SEARCH CARD -->
+  <div class="card">
+    <div class="section-label">🔍 Buscar producto</div>
+    <div id="search-wrap">
+      <span id="search-icon">⌕</span>
+      <input type="text" id="search-in" placeholder="Nombre o código del producto…"/>
+    </div>
+    <div id="loading">
+      <div class="spinner"></div> Cargando base de datos…
+    </div>
+    <div id="search-results"></div>
+  </div>
+
+  <div id="footer"></div>
+</main>
+
+<script>
+const SUPABASE_URL = 'https://xzaoejgfojhdbzbghrfi.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh6YW9lamdmb2poZGJ6YmdocmZpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNjM3NTMsImV4cCI6MjA5MzkzOTc1M30.COjAaG04WYPzswi_HoET98o_WDKL-N2F9ppN_ns4_yo';
+
+let allProducts = [];
+let scanning = false;
+let lastCode = null;
+
+// ── Load ALL products from Supabase ──
+async function loadProducts() {
+  try {
+    let all = [];
+    let from = 0;
+    const pageSize = 1000;
+    while (true) {
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/productos?select=codigo,nombre,precio&order=nombre.asc&limit=${pageSize}&offset=${from}`,
+        { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+      );
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) break;
+      all = all.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    allProducts = all;
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('header-sub').textContent = `${all.length.toLocaleString()} productos · Matriz`;
+    document.getElementById('footer').textContent = `${all.length.toLocaleString()} productos cargados desde Supabase`;
+  } catch(e) {
+    document.getElementById('loading').innerHTML = '⚠️ Error al conectar con Supabase.';
+  }
+}
+
+// ── Search by barcode in Supabase ──
+async function lookupCode(code) {
+  const res = await fetch(
+    `${SUPABASE_URL}/rest/v1/productos?codigo=eq.${encodeURIComponent(code)}&select=codigo,nombre,precio&limit=1`,
+    { headers: { 'apikey': SUPABASE_KEY, 'Authorization': 'Bearer ' + SUPABASE_KEY } }
+  );
+  const data = await res.json();
+  return (Array.isArray(data) && data.length > 0) ? data[0] : null;
+}
+
+// ── Show result ──
+function showResult(p, code) {
+  const rc = document.getElementById('result-card');
+  if (p) {
+    rc.innerHTML = `
+      <div class="res-code">📦 Código: ${code}</div>
+      <div class="res-name">${p.nombre}</div>
+      <div class="res-price"><span>$</span>${parseFloat(p.precio).toFixed(2)}</div>
+      <button id="btn-rescan" onclick="rescan()">🔄 Escanear otro producto</button>`;
+  } else {
+    rc.innerHTML = `
+      <div class="not-found">
+        <strong>Producto no encontrado</strong>
+        <span>Código: ${code}</span><br>
+        <small>Este artículo no está en la base de datos.</small>
+      </div>
+      <button id="btn-rescan" style="margin-top:12px" onclick="rescan()">🔄 Escanear otro</button>`;
+  }
+  rc.style.display = 'block';
+  rc.scrollIntoView({ behavior:'smooth', block:'nearest' });
+}
+
+// ── Scan flow ──
+async function handleCode(code) {
+  document.getElementById('status').textContent = '🔍 Buscando ' + code + '…';
+  const p = await lookupCode(code);
+  showResult(p, code);
+}
+
+function rescan() {
+  document.getElementById('result-card').style.display = 'none';
+  lastCode = null;
+  startScanner();
+}
+
+function stopScanner() {
+  try { Quagga.stop(); } catch(e) {}
+  const v = document.getElementById('video');
+  if (v.srcObject) { v.srcObject.getTracks().forEach(t => t.stop()); v.srcObject = null; }
+  scanning = false;
+  document.getElementById('overlay').style.display = 'flex';
+  document.getElementById('scan-line').style.display = 'none';
+  const btn = document.getElementById('btn-start');
+  btn.classList.remove('active');
+  btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg> Iniciar escáner`;
+  document.getElementById('status').textContent = 'Escáner detenido.';
+}
+
+function startScanner() {
+  if (scanning) { stopScanner(); return; }
+  document.getElementById('status').textContent = 'Solicitando acceso a la cámara…';
+  navigator.mediaDevices.getUserMedia({ video: { facingMode:'environment', width:{ideal:1280} } })
+    .then(stream => {
+      const video = document.getElementById('video');
+      video.srcObject = stream;
+      document.getElementById('overlay').style.display = 'none';
+      document.getElementById('scan-line').style.display = 'block';
+      scanning = true; lastCode = null;
+      const btn = document.getElementById('btn-start');
+      btn.classList.add('active');
+      btn.innerHTML = `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> Detener`;
+      document.getElementById('status').textContent = 'Apunta la cámara al código de barras…';
+      document.getElementById('result-card').style.display = 'none';
+
+      Quagga.init({
+        inputStream: { name:'Live', type:'LiveStream', target: video, constraints:{facingMode:'environment'} },
+        decoder: { readers:['ean_reader','ean_8_reader','upc_reader','upc_e_reader','code_128_reader','code_39_reader'] },
+        locate: true, frequency: 10,
+      }, err => { if(err){ document.getElementById('status').textContent='Error cámara: '+err; return; } Quagga.start(); });
+
+      Quagga.onDetected(result => {
+        const code = result.codeResult.code;
+        if (code && code !== lastCode) {
+          lastCode = code;
+          stopScanner();
+          handleCode(code);
+        }
+      });
+    })
+    .catch(() => { document.getElementById('status').textContent = 'Cámara no disponible. Usa búsqueda manual.'; });
+}
+
+document.getElementById('btn-start').addEventListener('click', startScanner);
+
+document.getElementById('btn-manual').addEventListener('click', () => {
+  const c = document.getElementById('manual-in').value.trim();
+  if (c) handleCode(c);
+});
+document.getElementById('manual-in').addEventListener('keydown', e => { if(e.key==='Enter') document.getElementById('btn-manual').click(); });
+
+// ── Local search ──
+const searchIn = document.getElementById('search-in');
+const searchRes = document.getElementById('search-results');
+
+searchIn.addEventListener('input', () => {
+  const q = searchIn.value.trim().toLowerCase();
+  if (q.length < 2) { searchRes.innerHTML = ''; return; }
+  const matches = allProducts.filter(p =>
+    p.nombre.toLowerCase().includes(q) || p.codigo.toLowerCase().includes(q)
+  ).slice(0, 40);
+  if (!matches.length) {
+    searchRes.innerHTML = '<div class="s-item"><span style="color:#999;font-size:13px">Sin resultados</span></div>';
+    return;
+  }
+  searchRes.innerHTML = matches.map(p => `
+    <div class="s-item" onclick="showResult(${JSON.stringify(p)}, '${p.codigo}'); searchIn.value=''; searchRes.innerHTML='';">
+      <div class="s-item-left">
+        <div class="s-name">${p.nombre}</div>
+        <div class="s-code">${p.codigo}</div>
+      </div>
+      <div class="s-price">$${parseFloat(p.precio).toFixed(2)}</div>
+    </div>`).join('');
+});
+
+loadProducts();
+</script>
+</body>
+</html>
