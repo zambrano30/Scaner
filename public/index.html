@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Escáner de Productos - Supermercados Verito Cedeño</title>
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --green: #0F6E56; --green-light: #E1F5EE; --green-mid: #1D9E75;
+    --amber: #BA7517; --amber-light: #FAEEDA;
+    --red: #A32D2D; --red-light: #FCEBEB;
+    --text: #1a1a1a; --muted: #555; --border: #ddd; --bg: #f7f8f6;
+  }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+  header { background: var(--green); color: #fff; padding: 14px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,.2); }
+  header svg { flex-shrink: 0; }
+  header h1 { font-size: 16px; font-weight: 600; line-height: 1.3; }
+  header p { font-size: 12px; opacity: .8; }
+  main { max-width: 540px; margin: 0 auto; padding: 16px; }
+  
+  .card { background: #fff; border-radius: 14px; border: 1px solid var(--border); overflow: hidden; margin-bottom: 14px; }
+  
+  #video-wrap { position: relative; background: #111; aspect-ratio: 4/3; }
+  #video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  #scan-line { position: absolute; left: 10%; right: 10%; height: 2.5px; background: var(--green-mid); top: 50%; transform: translateY(-50%); animation: sweep 2s ease-in-out infinite; box-shadow: 0 0 10px var(--green-mid); display: none; }
+  @keyframes sweep { 0%,100%{top:20%} 50%{top:80%} }
+  .corner { position: absolute; width: 28px; height: 28px; border-color: var(--green-mid); border-style: solid; }
+  .tl{ top:12px;left:12px;border-width:3px 0 0 3px;border-radius:5px 0 0 0; }
+  .tr{ top:12px;right:12px;border-width:3px 3px 0 0;border-radius:0 5px 0 0; }
+  .bl{ bottom:12px;left:12px;border-width:0 0 3px 3px;border-radius:0 0 0 5px; }
+  .br{ bottom:12px;right:12px;border-width:0 3px 3px 0;border-radius:0 0 5px 0; }
+  #overlay { position:absolute;inset:0;background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;text-align:center;padding:20px; }
+  #overlay svg { margin-bottom:10px;opacity:.8; }
+  #overlay p { font-size:14px;opacity:.9; }
+  
+  .controls { padding: 14px; display: flex; gap: 10px; }
+  #btn-start { flex:1;padding:12px;background:var(--green);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:background .2s; }
+  #btn-start:hover { background:#0c5c47; }
+  #btn-start.active { background:#8B0000; }
+  
+  #status { text-align:center;font-size:13px;color:var(--muted);padding:0 14px 12px;min-height:20px; }
+  
+  #result-card { display:none; padding: 18px; }
+  #result-card .barcode-id { font-size:11px;font-family:monospace;color:var(--muted);margin-bottom:6px; }
+  #result-card .prod-name { font-size:19px;font-weight:700;color:var(--text);margin-bottom:8px;line-height:1.3; }
+  #result-card .stock-row { display:flex;align-items:center;gap:6px;margin-bottom:14px; }
+  .badge { font-size:12px;padding:4px 10px;border-radius:99px;font-weight:500; }
+  .badge-green { background:var(--green-light);color:var(--green); }
+  .badge-amber { background:var(--amber-light);color:var(--amber); }
+  .badge-red { background:var(--red-light);color:var(--red); }
+  #btn-rescan { width:100%;padding:11px;background:var(--green-light);color:var(--green);border:1.5px solid var(--green-mid);border-radius:10px;font-size:14px;font-weight:600;cursor:pointer; }
+  
+  .manual-row { padding:0 14px 14px;display:flex;gap:8px; }
+  .manual-row input { flex:1;padding:10px 12px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#fff; }
+  .manual-row button { padding:10px 16px;background:var(--green);color:#fff;border:none;border-radius:9px;font-size:14px;cursor:pointer;font-weight:600; }
+  
+  .section-title { font-size:13px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;padding:14px 14px 8px;border-top:1px solid var(--border); }
+  #search-box { margin:0 14px 14px;position:relative; }
+  #search-box input { width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border);border-radius:9px;font-size:14px;background:#fff; }
+  #search-box svg { position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted); }
+  #search-results { max-height:220px;overflow-y:auto;border-top:1px solid var(--border); }
+  .search-item { padding:10px 14px;border-bottom:1px solid #f0f0f0;cursor:pointer;transition:background .1s; }
+  .search-item:hover { background:var(--green-light); }
+  .search-item .si-name { font-size:14px;font-weight:500; }
+  .search-item .si-code { font-size:11px;color:var(--muted);font-family:monospace; }
+  
+  .not-found { text-align:center;padding:20px;color:var(--muted); }
+  .not-found strong { display:block;font-size:16px;color:var(--red);margin-bottom:4px; }
+  
+  #total-count { text-align:center;font-size:12px;color:var(--muted);padding-bottom:16px; }
+</style>
+</head>
+<body>
+
+<header>
+  <svg width="36" height="36" viewBox="0 0 36 36" fill="none"><rect width="36" height="36" rx="8" fill="white" fill-opacity=".15"/><path d="M8 10h2v16H8V10zm3 0h1v16h-1V10zm3 0h2v16h-2V10zm4 0h1v16h-1V10zm2 0h2v16h-2V10zm3 0h1v16h-1V10zm2 0h3v16h-3V10z" fill="white"/></svg>
+  <div>
+    <h1>Supermercados Verito Cedeño</h1>
+    <p>Escáner de productos · <span id="total-products">0</span> artículos</p>
+  </div>
+</header>
+
+<main>
+  <div class="card">
+    <div id="video-wrap">
+      <video id="video" autoplay playsinline muted></video>
+      <div class="corner tl"></div><div class="corner tr"></div>
+      <div class="corner bl"></div><div class="corner br"></div>
+      <div id="scan-line"></div>
+      <div id="overlay">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h2v2h-2zm4 0h3v3h-3zm0 4h2v3h-2zm-4 2h2v3h-2z"/></svg>
+        <p>Presiona "Iniciar escáner"<br>para activar la cámara</p>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <button id="btn-start">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><line x1="7" y1="12" x2="17" y2="12"/></svg>
+        Iniciar escáner
+      </button>
+    </div>
+    <div id="status">Cargando datos...</div>
+    
+    <div id="result-card"></div>
+    
+    <div class="manual-row">
+      <input id="manual-in" type="text" placeholder="Ingresar código manualmente…" inputmode="numeric"/>
+      <button id="btn-manual">Buscar</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="section-title">Buscar por nombre o código</div>
+    <div id="search-box">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-in" placeholder="Ej: coca cola, galleta, leche…"/>
+    </div>
+    <div id="search-results"></div>
+  </div>
+  
+  <div id="total-count"></div>
+</main>
+
+<script>
+// Configuración de Supabase - Se cargan desde las variables de entorno
+const SUPABASE_URL = window.location.origin === 'http://localhost:3000' 
+  ? 'http://localhost:3000/api/config'
+  : window.location.origin;
+
+let products = [];
+let supabase = null;
+
+// Inicializar Supabase
+async function initSupabase() {
+  try {
+    const response = await fetch('/api/config');
+    const config = await response.json();
+    supabase = window.supabase.createClient(config.url, config.key);
+    console.log('✓ Supabase inicializado');
+    await loadProducts();
+  } catch (error) {
+    console.error('Error inicializando Supabase:', error);
+    document.getElementById('status').textContent = 'Error de conexión. Recarga la página.';
+  }
+}
+
+// Cargar productos desde Supabase
+async function loadProducts() {
+  try {
+    document.getElementById('status').textContent = 'Cargando productos...';
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .limit(1000);
+    
+    if (error) throw error;
+    
+    products = data || [];
+    document.getElementById('total-products').textContent = products.length.toLocaleString('es-ES');
+    document.getElementById('total-count').textContent = `${products.length.toLocaleString('es-ES')} productos cargados desde Supermercados Verito Cedeño`;
+    document.getElementById('status').textContent = 'Listo para escanear.';
+    console.log(`✓ ${products.length} productos cargados`);
+  } catch (error) {
+    console.error('Error cargando productos:', error);
+    document.getElementById('status').textContent = 'Error al cargar productos.';
+  }
+}
+
+// Función para buscar producto por código
+function searchProduct(code) {
+  return products.find(p => p.barcode === code || p.codigo === code);
+}
+
+// Función para formatear stock
+function formatStock(stock) {
+  if (stock > 10) return { badge: 'badge-green', text: 'En stock' };
+  if (stock > 0) return { badge: 'badge-amber', text: 'Stock bajo' };
+  return { badge: 'badge-red', text: 'Sin stock' };
+}
+
+// Mostrar resultado
+function displayResult(product) {
+  if (!product) {
+    document.getElementById('result-card').innerHTML = `
+      <div class="not-found">
+        <strong>Producto no encontrado</strong>
+        <p>Verifica el código de barras e intenta de nuevo</p>
+      </div>
+    `;
+    document.getElementById('result-card').style.display = 'block';
+    return;
+  }
+
+  const stock = product.stock || 0;
+  const stockInfo = formatStock(stock);
+  
+  document.getElementById('result-card').innerHTML = `
+    <div class="barcode-id">${product.barcode || product.codigo}</div>
+    <div class="prod-name">${product.nombre || product.name}</div>
+    <div class="stock-row">
+      <span class="badge ${stockInfo.badge}">${stockInfo.text}</span>
+      <span style="color: var(--muted); font-size: 14px;">${stock} unidades</span>
+    </div>
+    ${product.precio ? `<div style="font-size: 16px; font-weight: 600; color: var(--green);">$${product.precio.toFixed(2)}</div>` : ''}
+    <button id="btn-rescan">Escanear otro</button>
+  `;
+  document.getElementById('result-card').style.display = 'block';
+  
+  document.getElementById('btn-rescan').addEventListener('click', () => {
+    document.getElementById('result-card').style.display = 'none';
+  });
+}
+
+// Búsqueda por nombre/código manual
+document.getElementById('btn-manual').addEventListener('click', () => {
+  const code = document.getElementById('manual-in').value.trim();
+  if (!code) return;
+  
+  const product = searchProduct(code);
+  displayResult(product);
+  document.getElementById('manual-in').value = '';
+});
+
+// Buscar en tiempo real
+document.getElementById('search-in').addEventListener('input', (e) => {
+  const query = e.target.value.toLowerCase().trim();
+  const resultsDiv = document.getElementById('search-results');
+  
+  if (!query) {
+    resultsDiv.innerHTML = '';
+    return;
+  }
+  
+  const results = products.filter(p => 
+    (p.nombre || p.name || '').toLowerCase().includes(query) ||
+    (p.codigo || p.barcode || '').toLowerCase().includes(query)
+  ).slice(0, 10);
+  
+  if (results.length === 0) {
+    resultsDiv.innerHTML = '<div class="not-found">No se encontraron productos</div>';
+    return;
+  }
+  
+  resultsDiv.innerHTML = results.map(p => `
+    <div class="search-item" onclick="displayResult(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+      <div class="si-name">${p.nombre || p.name}</div>
+      <div class="si-code">${p.barcode || p.codigo}</div>
+    </div>
+  `).join('');
+});
+
+// Botón iniciar escáner
+document.getElementById('btn-start').addEventListener('click', async () => {
+  const btn = document.getElementById('btn-start');
+  const video = document.getElementById('video');
+  
+  if (btn.classList.contains('active')) {
+    Quagga.stop();
+    btn.classList.remove('active');
+    btn.textContent = '▶ Iniciar escáner';
+    return;
+  }
+  
+  try {
+    btn.classList.add('active');
+    btn.textContent = '⏹ Detener';
+    
+    await Quagga.init({
+      inputStream: {
+        type: 'LiveStream',
+        constraints: { facingMode: 'environment' }
+      },
+      decoder: { readers: ['code_128_reader', 'ean_reader', 'ean_8_reader', 'upc_reader'] }
+    }, (err) => {
+      if (err) {
+        console.error('Error inicializando cámara:', err);
+        btn.classList.remove('active');
+        btn.textContent = '▶ Iniciar escáner';
+        alert('No se pudo acceder a la cámara');
+        return;
+      }
+      Quagga.start();
+    });
+    
+    Quagga.onDetected((result) => {
+      if (result.codeResult.code) {
+        const product = searchProduct(result.codeResult.code);
+        displayResult(product);
+        Quagga.stop();
+        btn.classList.remove('active');
+        btn.textContent = '▶ Iniciar escáner';
+      }
+    });
+  } catch (error) {
+    console.error('Error:', error);
+    btn.classList.remove('active');
+    btn.textContent = '▶ Iniciar escáner';
+  }
+});
+
+// Inicializar al cargar
+initSupabase();
+</script>
+
+</body></html>

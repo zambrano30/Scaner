@@ -1,0 +1,20 @@
+{
+  "name": "scaner-verito",
+  "version": "1.0.0",
+  "description": "Escáner de productos para Supermercados Verito Cedeño",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build needed'",
+    "start": "node api/index.js"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.38.4",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": ["barcode", "scanner", "supermercado"],
+  "author": "",
+  "license": "MIT"
+}
