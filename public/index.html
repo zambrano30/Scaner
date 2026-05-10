@@ -257,11 +257,22 @@ document.getElementById('search-in').addEventListener('input', (e) => {
 document.getElementById('btn-start').addEventListener('click', () => {
   const btn = document.getElementById('btn-start');
   
+  // Verificar que mediaDevices existe
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    document.getElementById('status').textContent = 'Error: Tu navegador no soporta acceso a cámara';
+    console.error('❌ navigator.mediaDevices no disponible');
+    alert('Tu navegador no soporta acceso a cámara. Usa Chrome, Firefox o Edge.');
+    return;
+  }
+  
   if (btn.classList.contains('active')) {
-    Quagga.stop();
+    try {
+      Quagga.stop();
+    } catch(e) {
+      console.log('Quagga no estaba activo');
+    }
     btn.classList.remove('active');
     btn.textContent = '▶ Iniciar escáner';
-    console.log('Escáner detenido');
     document.getElementById('status').textContent = 'Listo para escanear.';
     return;
   }
@@ -278,6 +289,9 @@ document.getElementById('btn-start').addEventListener('click', () => {
   }).then((stream) => {
     console.log('✓ Cámara accesible');
     document.getElementById('status').textContent = 'Inicializando escáner...';
+    
+    // Detener stream antes de inicializar Quagga
+    stream.getTracks().forEach(track => track.stop());
     
     // Ahora inicializar Quagga
     Quagga.init({
@@ -302,8 +316,7 @@ document.getElementById('btn-start').addEventListener('click', () => {
           'upc_reader',
           'upc_e_reader'
         ]
-      },
-      debug: { showPatches: false }
+      }
     }, (err) => {
       if (err) {
         console.error('❌ Error Quagga:', err);
@@ -320,18 +333,22 @@ document.getElementById('btn-start').addEventListener('click', () => {
       
       Quagga.onDetected((result) => {
         const code = result.codeResult.code;
-        console.log('✓ Código detectado:', code);
-        document.getElementById('status').textContent = 'Código: ' + code;
-        
-        const product = searchProduct(code);
-        displayResult(product);
-        
-        // Detener después de detectar
-        setTimeout(() => {
-          Quagga.stop();
-          btn.classList.remove('active');
-          btn.textContent = '▶ Iniciar escáner';
-        }, 1500);
+        if (code) {
+          console.log('✓ Código detectado:', code);
+          document.getElementById('status').textContent = 'Código: ' + code;
+          
+          const product = searchProduct(code);
+          displayResult(product);
+          
+          // Detener después de detectar
+          setTimeout(() => {
+            try {
+              Quagga.stop();
+            } catch(e) {}
+            btn.classList.remove('active');
+            btn.textContent = '▶ Iniciar escáner';
+          }, 1500);
+        }
       });
     });
   }).catch((error) => {
@@ -341,9 +358,13 @@ document.getElementById('btn-start').addEventListener('click', () => {
     btn.textContent = '▶ Iniciar escáner';
     
     if (error.name === 'NotAllowedError') {
-      alert('Debes permitir acceso a la cámara');
+      alert('❌ Debes permitir acceso a la cámara en los permisos del navegador');
     } else if (error.name === 'NotFoundError') {
-      alert('No se encontró cámara en el dispositivo');
+      alert('❌ No se encontró cámara en el dispositivo');
+    } else if (error.name === 'NotReadableError') {
+      alert('❌ La cámara está siendo usada por otra aplicación');
+    } else {
+      alert('❌ Error: ' + error.message);
     }
   });
 });

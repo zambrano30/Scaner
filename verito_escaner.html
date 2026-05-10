@@ -3,9 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Supermercados Verito Cedeño</title>
-<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
-<style>
+<title>Redirigiendo...</title>
+<script>
+  // Este archivo está obsoleto. Redirigir al servidor correcto
+  const host = window.location.hostname;
+  const port = window.location.port || 3000;
+  
+  if (host === 'localhost' || host === '127.0.0.1') {
+    window.location.href = `http://localhost:3000/`;
+  } else {
+    window.location.href = `http://${host}:${port}/`;
+  }
+</script>
+</head>
+<body>
+<p>Redirigiendo al escáner... Si no funciona, abre: <a href="/" id="link">http://localhost:3000</a></p>
+<script>
+  document.getElementById('link').href = `http://${window.location.hostname}:3000`;
+</script>
+</body>
+</html>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --green: #0F6E56; --green-light: #E1F5EE; --green-mid: #1D9E75;
